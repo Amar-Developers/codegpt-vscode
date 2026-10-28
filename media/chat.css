@@ -232,3 +232,14 @@ body.home.noside .side { display: none; }
   color: var(--vscode-descriptionForeground); cursor: pointer; }
 .ctxchip:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
 @media (max-width: 760px) { .topbar .tb.lbl span { display: none; } }
+.side-top { display: flex; align-items: center; gap: 2px; padding: 0 2px 10px; }
+.side .tb, .h6row .tb { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: none;
+  color: var(--vscode-descriptionForeground); cursor: pointer; }
+.side .tb:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
+.h6row { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 0; }
+.h6row h6 { margin: 4px 9px; }
+body.home:not(.noside) .when-noside { display: none; }
+.when-noside { display: inline-flex; align-items: center; gap: 2px; }
+.gs { margin: 8px 2px 10px; padding: 10px; border: 1px solid var(--vscode-widget-border, rgba(128,128,128,.2)); border-radius: 10px; }
+.gs-h { display: flex; justify-content: space-between; color: var(--vscode-descriptionForeground); font-size: 12.5px; margin-bottom: 6px; }
+.gs-h b { color: var(--vscode-foreground); }

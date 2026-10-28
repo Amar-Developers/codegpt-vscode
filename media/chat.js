@@ -88,14 +88,20 @@
     side.id = 'side';
     const item = (icon, label, action, title) => `<button class="nav" type="button" data-home="${action}" title="${esc(title || label)}">${I(icon, 16)}<span>${esc(label)}</span></button>`;
     side.innerHTML = `
-      <div class="side-top"><img src="${esc(ICON_URL)}" alt="" width="22" height="22"><b>Code GPT</b></div>
+      <div class="side-top">
+        <button class="tb" type="button" id="h-toggle2" title="Hide the sidebar (Ctrl+B)" aria-label="Hide the sidebar">${I('panel-left', 16)}</button>
+        <button class="tb" type="button" data-home="quickOpen" title="Search files (Ctrl+P)" aria-label="Search files">${I('search', 16)}</button>
+        <span class="grow"></span>
+        <button class="tb" type="button" data-home="back" title="Back" aria-label="Back">${I('chevron-left', 16)}</button>
+        <button class="tb" type="button" data-home="forward" title="Forward" aria-label="Forward">${I('chevron-right', 16)}</button>
+      </div>
       <nav>
         <button class="nav on" type="button" id="h-new">${I('square-pen', 16)}<span>New chat</span></button>
         ${item('calendar-clock', 'Automations', 'automations', 'Scheduled tasks on the web')}
         ${item('sliders-horizontal', 'Customize', 'customize', 'Instructions, memory and models')}
         ${item('history', 'All chats', 'chats', 'Open your chats on the web')}
       </nav>
-      <h6>Project</h6>
+      <div class="h6row"><h6>Project</h6><button class="tb" type="button" data-home="openFolder" title="Open a folder" aria-label="Open a folder">${I('folder-open', 15)}</button></div>
       <div class="proj" id="h-proj"></div>
       <nav>
         ${item('folder-open', 'Open folder…', 'openFolder')}
@@ -109,14 +115,16 @@
         ${item('puzzle', 'Extensions', 'extensions')}
       </nav>
       <div class="grow"></div>
+      <div class="gs" id="h-gs" hidden><div class="gs-h"><span>Getting started</span><b id="h-gs-n">0/3</b></div>
+        <button class="btn ghost wide" type="button" id="h-gs-next"></button></div>
       <div class="acct"><span class="av" id="h-av">?</span><span class="who"><b id="h-name">Not connected</b><small id="h-mail"></small></span>
         <button class="icon-btn" type="button" data-home="settings" title="Settings" aria-label="Settings">${I('settings', 16)}</button></div>`;
     document.body.insertBefore(side, app);
     // the top bar, like Cursor's: sidebar, search, back and forward on the left; open file, folder and IDE on the right
     const top = el('header', 'topbar');
     const tb = (icon, action, title, label) => `<button class="tb${label ? ' lbl' : ''}" type="button" data-home="${action}" title="${esc(title)}" aria-label="${esc(title)}">${I(icon, 16)}${label ? `<span>${esc(label)}</span>` : ''}</button>`;
-    top.innerHTML = `<button class="tb" type="button" id="h-toggle" title="Show or hide the sidebar (Ctrl+B)" aria-label="Toggle sidebar">${I('panel-left', 16)}</button>
-      ${tb('search', 'quickOpen', 'Search files (Ctrl+P)')}${tb('chevron-left', 'back', 'Back')}${tb('chevron-right', 'forward', 'Forward')}
+    top.innerHTML = `<span class="when-noside"><button class="tb" type="button" id="h-toggle" title="Show the sidebar (Ctrl+B)" aria-label="Show the sidebar">${I('panel-left', 16)}</button>
+      ${tb('search', 'quickOpen', 'Search files (Ctrl+P)')}${tb('chevron-left', 'back', 'Back')}${tb('chevron-right', 'forward', 'Forward')}</span>
       <span class="grow"></span>
       ${tb('file-plus', 'openFile', 'Open a file', 'Open file')}${tb('folder-open', 'openFolder', 'Open a folder', 'Open folder')}
       ${tb('code-xml', 'ide', 'Go to the code editor', 'IDE')}
@@ -141,7 +149,8 @@
     top.addEventListener('click', (e) => { const b = e.target.closest('[data-home]'); if (b) send({ type: 'home', action: b.dataset.home }); });
     const setSide = (open) => { document.body.classList.toggle('noside', !open); vs.setState(Object.assign(saved, { side: open })); };
     setSide(saved.side !== false);
-    top.querySelector('#h-toggle').onclick = () => setSide(document.body.classList.contains('noside'));
+    top.querySelector('#h-toggle').onclick = () => setSide(true);
+    side.querySelector('#h-toggle2').onclick = () => setSide(false);
     document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'b') { e.preventDefault(); setSide(document.body.classList.contains('noside')); } });
     top.querySelector('#h-more').onclick = (e) => {
       e.stopPropagation();
@@ -186,6 +195,7 @@
     const agent = S.mentions.find((m) => m.kind === 'agent' && text.includes('@' + m.name));
     const task = agent ? text.replace('@' + agent.name, '').trim() || text : text;
     send({ type: 'send', text: task, shown: text, mode: S.mode, mentions, agentId: agent ? agent.id : '', agentName: agent ? agent.name : '' });
+    if (!saved.didTask) { saved.didTask = true; vs.setState(saved); }
     q.value = ''; grow();
     S.mentions = []; paintChips();
   }
@@ -552,6 +562,10 @@
           if (homeCtx) homeCtx.querySelector('#h-projname').textContent = m.folder || 'No folder';
           $('h-proj').innerHTML = m.folder ? `${I('folder', 15)}<span>${esc(m.folder)}</span>` : `<span class="dim">No folder open</span>`;
           if (!m.folder) $('hello-sub').textContent = 'Open a folder to let the agent work on a project, or just ask.';
+          const steps = [[m.connected, 'Connect your account', 'connect'], [!!m.folder, 'Open a project folder', 'openFolder'], [!!saved.didTask, 'Give the agent a task', 'task']];
+          const n = steps.filter((x) => x[0]).length, next = steps.find((x) => !x[0]);
+          $('h-gs').hidden = !next; $('h-gs-n').textContent = n + '/3';
+          if (next) { const b = $('h-gs-next'); b.textContent = next[1]; b.onclick = () => next[2] === 'connect' ? send({ type: 'connect' }) : next[2] === 'task' ? q.focus() : send({ type: 'home', action: next[2] }); }
         }
         paintPills(); meter();
         if (m.busy !== undefined) busy(m.busy, S.busyKind);
