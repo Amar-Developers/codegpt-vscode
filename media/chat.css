@@ -216,3 +216,19 @@ body.home .starter:hover { background: var(--vscode-list-hoverBackground); }
 body.home .keys { justify-content: center; }
 body.home .connect { max-width: 420px; padding-top: 14vh; }
 @media (max-width: 760px) { body.home { grid-template-columns: 1fr; } .side { display: none; } }
+/* Home: top bar and the project chip above the message box */
+body.home #app { display: flex; flex-direction: column; height: 100%; }
+body.home #main { flex: 1; min-height: 0; height: auto; }
+body.home #connect { flex: 1; overflow-y: auto; }
+body.home.noside { grid-template-columns: minmax(0, 1fr); }
+body.home.noside .side { display: none; }
+.topbar { flex: none; display: flex; align-items: center; gap: 2px; height: 40px; padding: 0 10px; border-bottom: 1px solid var(--vscode-widget-border, rgba(128,128,128,.16)); }
+.topbar .tb { display: inline-flex; align-items: center; gap: 6px; height: 28px; min-width: 28px; justify-content: center; padding: 0 6px; border: 0; border-radius: 6px; background: none;
+  color: var(--vscode-descriptionForeground); font: inherit; font-size: 12.5px; cursor: pointer; }
+.topbar .tb:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
+.topbar .tb.lbl { padding: 0 9px; }
+.ctxrow { display: flex; gap: 6px; margin: 0 0 8px; }
+.ctxchip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 0; background: none; font: inherit; font-size: 12.5px;
+  color: var(--vscode-descriptionForeground); cursor: pointer; }
+.ctxchip:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
+@media (max-width: 760px) { .topbar .tb.lbl span { display: none; } }

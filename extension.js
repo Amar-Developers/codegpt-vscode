@@ -593,7 +593,14 @@ async function onMessage(m) {
       const app = (me && me.app_url) || server();
       const go = { openFolder: 'workbench.action.files.openFolder', openRecent: 'workbench.action.openRecent', clone: 'git.clone',
         explorer: 'workbench.view.explorer', newFile: 'workbench.action.files.newUntitledFile', terminal: 'workbench.action.terminal.new',
-        settings: 'workbench.action.openSettings', shortcuts: 'workbench.action.openGlobalKeybindings', extensions: 'workbench.view.extensions' }[m.action];
+        settings: 'workbench.action.openSettings', shortcuts: 'workbench.action.openGlobalKeybindings', extensions: 'workbench.view.extensions',
+        openFile: 'workbench.action.files.openFile', quickOpen: 'workbench.action.quickOpen', back: 'workbench.action.navigateBack',
+        forward: 'workbench.action.navigateForward', newWindow: 'workbench.action.newWindow', search: 'workbench.view.search',
+        commands: 'workbench.action.showCommands', panel: 'workbench.action.togglePanel', newFolder: 'workbench.action.files.openFolder' }[m.action];
+      if (m.action === 'ide') {                           // like Cursor's "IDE" button: go to the code editor
+        try { await vscode.commands.executeCommand('workbench.view.explorer'); if (homePanel) homePanel.reveal(vscode.ViewColumn.One, true); } catch (e) { /* ignore */ }
+        break;
+      }
       if (go) { try { await vscode.commands.executeCommand(go); } catch (e) { /* e.g. git is not installed */ } break; }
       const web = { automations: '/scheduled', customize: '/customize', chats: '/', usage: '/usage', help: '' }[m.action];
       if (web !== undefined) vscode.env.openExternal(vscode.Uri.parse(web === '' ? 'https://codegpt.it.com/docs' : app + web));

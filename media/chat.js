@@ -9,6 +9,7 @@
     changes: new Map(), cards: new Map(), steps: new Map(), reply: null, askBody: null, applyAsYouGo: false, sent: null, folder: '', trusted: true, app: '', active: '' };
   const saved = vs.getState() || {};
   const HOME = document.body.classList.contains('home');   // Code GPT Home: the agent in a full window
+  let homeCtx = null;                                       // the project chip row above the message box (Home only)
 
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
@@ -111,6 +112,49 @@
       <div class="acct"><span class="av" id="h-av">?</span><span class="who"><b id="h-name">Not connected</b><small id="h-mail"></small></span>
         <button class="icon-btn" type="button" data-home="settings" title="Settings" aria-label="Settings">${I('settings', 16)}</button></div>`;
     document.body.insertBefore(side, app);
+    // the top bar, like Cursor's: sidebar, search, back and forward on the left; open file, folder and IDE on the right
+    const top = el('header', 'topbar');
+    const tb = (icon, action, title, label) => `<button class="tb${label ? ' lbl' : ''}" type="button" data-home="${action}" title="${esc(title)}" aria-label="${esc(title)}">${I(icon, 16)}${label ? `<span>${esc(label)}</span>` : ''}</button>`;
+    top.innerHTML = `<button class="tb" type="button" id="h-toggle" title="Show or hide the sidebar (Ctrl+B)" aria-label="Toggle sidebar">${I('panel-left', 16)}</button>
+      ${tb('search', 'quickOpen', 'Search files (Ctrl+P)')}${tb('chevron-left', 'back', 'Back')}${tb('chevron-right', 'forward', 'Forward')}
+      <span class="grow"></span>
+      ${tb('file-plus', 'openFile', 'Open a file', 'Open file')}${tb('folder-open', 'openFolder', 'Open a folder', 'Open folder')}
+      ${tb('code-xml', 'ide', 'Go to the code editor', 'IDE')}
+      <button class="tb" type="button" id="h-more" title="More" aria-label="More" aria-haspopup="menu">${I('ellipsis', 16)}</button>`;
+    app.insertBefore(top, app.firstChild);
+    const ctxRow = el('div', 'ctxrow');
+    ctxRow.id = 'h-ctx';
+    homeCtx = ctxRow;
+    ctxRow.innerHTML = `<button class="ctxchip" type="button" id="h-projbtn">${I('folder', 14)}<span id="h-projname">No folder</span>${I('chevron-down', 12)}</button>
+      <button class="ctxchip" type="button" data-home="terminal">${I('terminal', 14)}<span>This PC</span></button>`;
+    ctxRow.addEventListener('click', (e) => { const b = e.target.closest('[data-home]'); if (b) send({ type: 'home', action: b.dataset.home }); });
+    ctxRow.querySelector('#h-projbtn').onclick = (e) => {
+      e.stopPropagation();
+      openMenu(e.currentTarget, [
+        { head: 'Project' },
+        { label: 'Open folder…', icon: 'folder-open', run: () => send({ type: 'home', action: 'openFolder' }) },
+        { label: 'Open recent…', icon: 'history', run: () => send({ type: 'home', action: 'openRecent' }) },
+        { label: 'Clone a repository…', icon: 'git-branch', run: () => send({ type: 'home', action: 'clone' }) },
+        { label: 'Open a file…', icon: 'file-plus', run: () => send({ type: 'home', action: 'openFile' }) }
+      ]);
+    };
+    top.addEventListener('click', (e) => { const b = e.target.closest('[data-home]'); if (b) send({ type: 'home', action: b.dataset.home }); });
+    const setSide = (open) => { document.body.classList.toggle('noside', !open); vs.setState(Object.assign(saved, { side: open })); };
+    setSide(saved.side !== false);
+    top.querySelector('#h-toggle').onclick = () => setSide(document.body.classList.contains('noside'));
+    document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'b') { e.preventDefault(); setSide(document.body.classList.contains('noside')); } });
+    top.querySelector('#h-more').onclick = (e) => {
+      e.stopPropagation();
+      openMenu(e.currentTarget, [
+        { label: 'New window', icon: 'plus', run: () => send({ type: 'home', action: 'newWindow' }) },
+        { label: 'Command palette', icon: 'list', run: () => send({ type: 'home', action: 'commands' }) },
+        { label: 'Search in files', icon: 'search', run: () => send({ type: 'home', action: 'search' }) },
+        { label: 'Terminal', icon: 'terminal', run: () => send({ type: 'home', action: 'terminal' }) },
+        { label: 'Settings', icon: 'settings', run: () => send({ type: 'home', action: 'settings' }) },
+        { label: 'Keyboard shortcuts', icon: 'zap', run: () => send({ type: 'home', action: 'shortcuts' }) },
+        { label: 'Docs', icon: 'book-open', run: () => send({ type: 'home', action: 'help' }) }
+      ]);
+    };
     side.addEventListener('click', (e) => { const b = e.target.closest('[data-home]'); if (b) send({ type: 'home', action: b.dataset.home }); });
     side.querySelector('#h-new').onclick = () => send({ type: 'newChat' });
     $('hi').textContent = 'What should we build?';
@@ -197,7 +241,8 @@
     const r = anchor.getBoundingClientRect();
     menu.hidden = false;
     menu.style.left = Math.max(6, Math.min(r.left, window.innerWidth - menu.offsetWidth - 6)) + 'px';
-    menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+    if (r.top < window.innerHeight / 2) { menu.style.bottom = 'auto'; menu.style.top = (r.bottom + 6) + 'px'; menu.style.left = Math.max(6, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 6)) + 'px'; }
+    else { menu.style.top = 'auto'; menu.style.bottom = (window.innerHeight - r.top + 6) + 'px'; }
   }
   function closeMenus() { $('menu').hidden = true; $('atmenu').hidden = true; }
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('.menu') && !e.target.closest('.pill') && !e.target.closest('#at')) closeMenus(); if (!e.target.closest('.sheet') && !e.target.closest('#sentlink')) $('sentpanel').hidden = true; });
@@ -308,7 +353,8 @@
     if (!HOME) return;
     document.body.classList.toggle('fresh', !!show);
     const dock = $('dock');
-    if (show) $('hello').insertBefore(dock, $('starters')); else if (dock.parentNode !== $('main')) $('main').insertBefore(dock, $('menu'));
+    if (show) { $('hello').insertBefore(dock, $('starters')); if (homeCtx) $('hello').insertBefore(homeCtx, dock); }
+    else if (dock.parentNode !== $('main')) $('main').insertBefore(dock, $('menu'));
   }
 
   function addUser(text, modeName, agentName) {
@@ -503,6 +549,7 @@
           $('h-av').textContent = (m.name || m.email || '?').slice(0, 1).toUpperCase();
           $('h-name').textContent = m.connected ? (m.name || 'Your account') : 'Not connected';
           $('h-mail').textContent = m.email || '';
+          if (homeCtx) homeCtx.querySelector('#h-projname').textContent = m.folder || 'No folder';
           $('h-proj').innerHTML = m.folder ? `${I('folder', 15)}<span>${esc(m.folder)}</span>` : `<span class="dim">No folder open</span>`;
           if (!m.folder) $('hello-sub').textContent = 'Open a folder to let the agent work on a project, or just ask.';
         }
