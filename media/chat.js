@@ -8,6 +8,7 @@
   const S = { connected: false, models: [], model: '', mode: 'agent', agents: [], turns: null, busy: false, busyKind: '', files: [], mentions: [], agent: null,
     changes: new Map(), cards: new Map(), steps: new Map(), reply: null, askBody: null, applyAsYouGo: false, sent: null, folder: '', trusted: true, app: '', active: '' };
   const saved = vs.getState() || {};
+  const HOME = document.body.classList.contains('home');   // Code GPT Home: the agent in a full window
 
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
@@ -65,18 +66,57 @@
   $('paste').onclick = () => send({ type: 'pasteKey' });
 
   const STARTERS = [
-    ['bug', 'Find and fix a bug', 'Find the bug that makes '],
-    ['flask-conical', 'Write tests', 'Write tests for the open file, then run them.'],
-    ['search', 'Explain this project', 'Explain how this project is organised: the main folders, files and how they fit together.'],
-    ['wand-sparkles', 'Add a feature', 'Add a feature: ']
+    ['list-checks', 'Start with a plan', 'Agree on the steps before any code changes', 'ask', 'Make a plan for this, step by step, before writing any code: '],
+    ['bug', 'Debug an issue', 'Find the root cause and fix it', 'agent', 'Find and fix the bug that makes '],
+    ['flask-conical', 'Write tests', 'Cover the open file with tests and run them', 'agent', 'Write tests for the open file, then run them.'],
+    ['search', 'Explain this project', 'How the folders and files fit together', 'ask', 'Explain how this project is organised: the main folders, files and how they fit together.'],
+    ['wand-sparkles', 'Add a feature', 'Describe it; review every change', 'agent', 'Add a feature: ']
   ];
-  STARTERS.forEach(([icon, label, text]) => {
+  STARTERS.forEach(([icon, label, desc, m, text]) => {
     const b = el('button', 'starter');
     b.type = 'button';
-    b.innerHTML = I(icon, 16) + `<span>${esc(label)}</span>`;
-    b.onclick = () => { setMode(label === 'Explain this project' ? 'ask' : 'agent'); q.value = text; grow(); q.focus(); q.setSelectionRange(q.value.length, q.value.length); };
+    b.innerHTML = I(icon, 16) + `<span>${esc(label)}</span>` + (HOME ? `<em>${esc(desc)}</em>` : '');
+    b.onclick = () => { setMode(m); q.value = text; grow(); q.focus(); q.setSelectionRange(q.value.length, q.value.length); };
+    if (!HOME && label === 'Start with a plan') return;
     $('starters').appendChild(b);
   });
+
+  /* ---------------------------------------------------------------- Code GPT Home: sidebar like Cursor's agent window */
+  if (HOME) {
+    const side = el('aside', 'side');
+    side.id = 'side';
+    const item = (icon, label, action, title) => `<button class="nav" type="button" data-home="${action}" title="${esc(title || label)}">${I(icon, 16)}<span>${esc(label)}</span></button>`;
+    side.innerHTML = `
+      <div class="side-top"><img src="${esc(ICON_URL)}" alt="" width="22" height="22"><b>Code GPT</b></div>
+      <nav>
+        <button class="nav on" type="button" id="h-new">${I('square-pen', 16)}<span>New chat</span></button>
+        ${item('calendar-clock', 'Automations', 'automations', 'Scheduled tasks on the web')}
+        ${item('sliders-horizontal', 'Customize', 'customize', 'Instructions, memory and models')}
+        ${item('history', 'All chats', 'chats', 'Open your chats on the web')}
+      </nav>
+      <h6>Project</h6>
+      <div class="proj" id="h-proj"></div>
+      <nav>
+        ${item('folder-open', 'Open folder…', 'openFolder')}
+        ${item('history', 'Open recent…', 'openRecent')}
+        ${item('git-branch', 'Clone a repository…', 'clone')}
+      </nav>
+      <h6>Editor</h6>
+      <nav>
+        ${item('file-code', 'Files', 'explorer')}
+        ${item('terminal', 'Terminal', 'terminal')}
+        ${item('puzzle', 'Extensions', 'extensions')}
+      </nav>
+      <div class="grow"></div>
+      <div class="acct"><span class="av" id="h-av">?</span><span class="who"><b id="h-name">Not connected</b><small id="h-mail"></small></span>
+        <button class="icon-btn" type="button" data-home="settings" title="Settings" aria-label="Settings">${I('settings', 16)}</button></div>`;
+    document.body.insertBefore(side, app);
+    side.addEventListener('click', (e) => { const b = e.target.closest('[data-home]'); if (b) send({ type: 'home', action: b.dataset.home }); });
+    side.querySelector('#h-new').onclick = () => send({ type: 'newChat' });
+    $('hi').textContent = 'What should we build?';
+    $('hello-sub').textContent = '';
+    q.placeholder = 'Plan, build, fix or explain… @ for files and agents';
+  }
 
   /* ---------------------------------------------------------------- composer */
   function grow() { q.style.height = 'auto'; q.style.height = Math.min(220, q.scrollHeight) + 'px'; vs.setState(Object.assign(saved, { draft: q.value })); }
@@ -88,7 +128,7 @@
     S.busy = b; S.busyKind = kind || '';
     $('sendbtn').hidden = b && kind !== 'agent';
     $('stopbtn').hidden = !b;
-    q.placeholder = b && kind === 'agent' ? 'Add a note while it works (it reads it on the next step)…' : S.mode === 'ask' ? 'Ask about your code… (@ for files)' : 'Ask Code GPT to build, fix or explain… (@ for files)';
+    q.placeholder = b && kind === 'agent' ? 'Add a note while it works (it reads it on the next step)…' : HOME ? 'Plan, build, fix or explain… @ for files and agents' : S.mode === 'ask' ? 'Ask about your code… (@ for files)' : 'Ask Code GPT to build, fix or explain… (@ for files)';
   }
 
   function submit() {
@@ -263,7 +303,13 @@
 
   /* ---------------------------------------------------------------- the thread */
   function scrollEnd(force) { const near = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 140; if (near || force) thread.scrollTop = thread.scrollHeight; }
-  function hello(show) { $('hello').hidden = !show; }
+  function hello(show) {
+    $('hello').hidden = !show;
+    if (!HOME) return;
+    document.body.classList.toggle('fresh', !!show);
+    const dock = $('dock');
+    if (show) $('hello').insertBefore(dock, $('starters')); else if (dock.parentNode !== $('main')) $('main').insertBefore(dock, $('menu'));
+  }
 
   function addUser(text, modeName, agentName) {
     hello(false);
@@ -452,6 +498,14 @@
         $('connect').hidden = m.connected; $('main').hidden = !m.connected;
         if (m.name) $('hi').textContent = `What should we build, ${m.name}?`;
         if (!m.folder) $('hello-sub').textContent = 'Open a folder (File › Open Folder) to let the agent work on a project. Ask mode works on any open file.';
+        else if (HOME) $('hello-sub').textContent = '';
+        if (HOME) {
+          $('h-av').textContent = (m.name || m.email || '?').slice(0, 1).toUpperCase();
+          $('h-name').textContent = m.connected ? (m.name || 'Your account') : 'Not connected';
+          $('h-mail').textContent = m.email || '';
+          $('h-proj').innerHTML = m.folder ? `${I('folder', 15)}<span>${esc(m.folder)}</span>` : `<span class="dim">No folder open</span>`;
+          if (!m.folder) $('hello-sub').textContent = 'Open a folder to let the agent work on a project, or just ask.';
+        }
         paintPills(); meter();
         if (m.busy !== undefined) busy(m.busy, S.busyKind);
         break;
@@ -511,5 +565,6 @@
   });
 
   paintPills();
+  if (HOME) hello(true);
   send({ type: 'ready' });
 })();

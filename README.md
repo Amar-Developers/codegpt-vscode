@@ -1,24 +1,3 @@
-<p align="center"><img src="https://codegpt.it.com/static/brand/logo-1024.png" width="96" alt="Code GPT"></p>
-<h1 align="center">Code GPT for VS Code</h1>
-<p align="center">An AI coding agent in your editor: it changes code you review, runs your tests when you say so, and edits in place with Ctrl+Alt+K.<br>
-<a href="https://codegpt.it.com/vscode">Website</a> · <a href="https://codegpt.it.com/download">Download</a> · <a href="https://codegpt.it.com/learn/vscode-agent">Lesson</a> · <a href="https://chat.codegpt.it.com/forum">Forum</a></p>
-
-## Install
-
-1. Download the newest `.vsix` from [codegpt.it.com/download](https://codegpt.it.com/download) (or from this repository's Releases).
-2. In VS Code: Extensions (Ctrl+Shift+X) › `…` › **Install from VSIX…** › pick the file.
-3. Click the Code GPT icon in the left bar and press **Connect**.
-
-It also works in Code GPT Editor (built in), Cursor, VSCodium and other VS Code-based editors.
-
-## Build the .vsix yourself
-
-```sh
-python3 build_vsix.py
-```
-
-No npm packages are needed: the extension is plain JavaScript.
-
 # Code GPT for VS Code
 
 Code GPT by AMAR Developers: an AI coding agent inside your editor, with your Code GPT account, models and agents.

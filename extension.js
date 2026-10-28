@@ -12,13 +12,14 @@ const { isSecretPath, maskSecrets } = require('./lib/secrets');
 const runner = require('./lib/runner');
 
 const KEY = 'codegpt.key';
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 const PROPOSED = 'codegpt-proposed';
 const ORIGINAL = 'codegpt-original';
 const EXCLUDE = '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/out/**,**/target/**,**/.next/**,**/__pycache__/**,**/.venv/**,**/venv/**,**/coverage/**}';
 
 let ctx = null;
 let view = null;
+let homePanel = null;          // the full-window Code GPT Home (Code GPT Editor opens it on start)
 let me = null;
 let pendingState = '';
 let lastEditor = null;
@@ -43,7 +44,11 @@ const docEmitter = new vscode.EventEmitter();
 /* ------------------------------------------------------------------ settings and small helpers */
 const cfg = () => vscode.workspace.getConfiguration('codegpt');
 function server() { return String(cfg().get('server') || 'https://chat.codegpt.it.com').replace(/\/+$/, ''); }
-function post(msg) { if (view) view.webview.postMessage(msg); else queue.push(msg); }
+function post(msg) {
+  const targets = [view && view.webview, homePanel && homePanel.webview].filter(Boolean);
+  if (!targets.length) queue.push(msg); else targets.forEach((w) => w.postMessage(msg));
+}
+function inEditorApp() { return /code gpt/i.test(vscode.env.appName || '') || vscode.env.uriScheme === 'codegpt-editor'; }
 function folder() { const f = vscode.workspace.workspaceFolders; return f && f.length ? f[0] : null; }
 function relOf(uri) {
   const f = folder();
@@ -65,9 +70,11 @@ async function refresh() {
   paintStatus();
 }
 function postState() {
+  vscode.commands.executeCommand('setContext', 'codegpt.connected', !!me);
   post({ type: 'state', connected: !!me, name: me ? me.first_name || '' : '', models: me ? me.models || [] : [], model: modelId(), mode: mode(),
     agents: me ? me.agents || [] : [], plan: me ? me.plan : '', turns: turnsInfo, applyAsYouGo: !!cfg().get('applyAsYouGo'), busy: !!(run || askAbort),
-    folder: folder() ? folder().name : '', trusted: vscode.workspace.isTrusted, version: VERSION, app: me ? me.app_url : server() });
+    folder: folder() ? folder().name : '', trusted: vscode.workspace.isTrusted, version: VERSION, app: me ? me.app_url : server(),
+    email: me ? me.email || '' : '', editorApp: inEditorApp() });
 }
 
 /* ------------------------------------------------------------------ connecting the account */
@@ -543,27 +550,55 @@ async function fileList() {
   try { const all = await ws.allFiles(5000); post({ type: 'files', files: all.files }); } catch (e) { post({ type: 'files', files: [] }); }
 }
 
-class ChatView {
-  resolveWebviewView(v) {
-    view = v;
-    const media = vscode.Uri.joinPath(ctx.extensionUri, 'media');
-    v.webview.options = { enableScripts: true, localResourceRoots: [media] };
-    const nonce = crypto.randomBytes(16).toString('base64');
-    const src = (f) => v.webview.asWebviewUri(vscode.Uri.joinPath(media, f));
-    v.webview.html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${v.webview.cspSource} https: data:; style-src ${v.webview.cspSource}; script-src 'nonce-${nonce}';">
-<link rel="stylesheet" href="${src('chat.css')}"><title>Code GPT</title></head><body>
+function chatHtml(webview, home) {
+  const media = vscode.Uri.joinPath(ctx.extensionUri, 'media');
+  const nonce = crypto.randomBytes(16).toString('base64');
+  const src = (f) => webview.asWebviewUri(vscode.Uri.joinPath(media, f));
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+<link rel="stylesheet" href="${src('chat.css')}"><title>Code GPT</title></head><body class="${home ? 'home' : ''}">
 <div id="app" data-icon="${src('icon.png')}"></div>
 <script nonce="${nonce}" src="${src('marked.min.js')}"></script><script nonce="${nonce}" src="${src('purify.min.js')}"></script>
 <script nonce="${nonce}" src="${src('icons.js')}"></script><script nonce="${nonce}" src="${src('chat.js')}"></script></body></html>`;
+}
+
+class ChatView {
+  resolveWebviewView(v) {
+    view = v;
+    v.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media')] };
+    v.webview.html = chatHtml(v.webview, false);
     v.webview.onDidReceiveMessage((m) => onMessage(m).catch((e) => post({ type: 'error', message: e.message })));
     v.onDidDispose(() => { view = null; });
   }
 }
 
+/* Code GPT Home: the agent in a full window, like Cursor's agent home. Same conversation as the side panel. */
+function setupHome(panel) {
+  homePanel = panel;
+  panel.iconPath = vscode.Uri.joinPath(ctx.extensionUri, 'media', 'icon.png');
+  panel.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media')] };
+  panel.webview.html = chatHtml(panel.webview, true);
+  panel.webview.onDidReceiveMessage((m) => onMessage(m).catch((e) => post({ type: 'error', message: e.message })));
+  panel.onDidDispose(() => { if (homePanel === panel) homePanel = null; });
+}
+function openHome() {
+  if (homePanel) { homePanel.reveal(vscode.ViewColumn.One); return; }
+  setupHome(vscode.window.createWebviewPanel('codegpt.home', 'Code GPT', vscode.ViewColumn.One, { retainContextWhenHidden: true, enableScripts: true }));
+}
+
 async function onMessage(m) {
   switch (m.type) {
-    case 'ready': while (queue.length) view.webview.postMessage(queue.shift()); await refresh(); fileList(); break;
+    case 'ready': { const q2 = queue.splice(0); q2.forEach((x) => post(x)); await refresh(); fileList(); break; }
+    case 'home': {                                       // buttons in the Code GPT Home sidebar
+      const app = (me && me.app_url) || server();
+      const go = { openFolder: 'workbench.action.files.openFolder', openRecent: 'workbench.action.openRecent', clone: 'git.clone',
+        explorer: 'workbench.view.explorer', newFile: 'workbench.action.files.newUntitledFile', terminal: 'workbench.action.terminal.new',
+        settings: 'workbench.action.openSettings', shortcuts: 'workbench.action.openGlobalKeybindings', extensions: 'workbench.view.extensions' }[m.action];
+      if (go) { try { await vscode.commands.executeCommand(go); } catch (e) { /* e.g. git is not installed */ } break; }
+      const web = { automations: '/scheduled', customize: '/customize', chats: '/', usage: '/usage', help: '' }[m.action];
+      if (web !== undefined) vscode.env.openExternal(vscode.Uri.parse(web === '' ? 'https://codegpt.it.com/docs' : app + web));
+      break;
+    }
     case 'connect': connect(); break;
     case 'pasteKey': vscode.commands.executeCommand('codegpt.pasteKey'); break;
     case 'send': {
@@ -651,6 +686,8 @@ function activate(context) {
       await saveKey(q.get('token'));
     } }),
     cmd('codegpt.connect', connect),
+    cmd('codegpt.home', openHome),
+    vscode.window.registerWebviewPanelSerializer('codegpt.home', { async deserializeWebviewPanel(panel) { setupHome(panel); } }),
     cmd('codegpt.pasteKey', async () => saveKey(await vscode.window.showInputBox({ prompt: 'Paste your Code GPT key (from the connect page)', password: true, ignoreFocusOut: true }))),
     cmd('codegpt.disconnect', async () => { await ctx.secrets.delete(KEY); me = null; chatId = null; postState(); paintStatus(); }),
     cmd('codegpt.newChat', () => onMessage({ type: 'newChat' })),
@@ -715,18 +752,22 @@ async function checkEditorUpdate(context) {
 
 /* ------------------------------------------------------------------ first start of Code GPT Editor (our own desktop app) */
 async function firstRun(context) {
-  const inEditor = /code gpt/i.test(vscode.env.appName || '') || vscode.env.uriScheme === 'codegpt-editor';
-  if (!inEditor || context.globalState.get('codegpt.welcomed')) return;
-  await context.globalState.update('codegpt.welcomed', true);
-  try {
-    const wb = vscode.workspace.getConfiguration('workbench');
-    const set = wb.inspect('colorTheme');
-    if (!set || (set.globalValue === undefined && set.workspaceValue === undefined)) await wb.update('colorTheme', 'Code GPT Dark', vscode.ConfigurationTarget.Global);
-  } catch (e) { /* the theme is optional */ }
-  try { await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'amar-developers.code-gpt#codegpt.start', false); } catch (e) { /* older editors */ }
-  try { await vscode.commands.executeCommand('codegpt.focus'); } catch (e) { /* the panel opens on its own later */ }
+  if (!inEditorApp()) return;                           // in plain VS Code nothing opens by itself
+  if (!context.globalState.get('codegpt.welcomed')) {
+    await context.globalState.update('codegpt.welcomed', true);
+    try {
+      const wb = vscode.workspace.getConfiguration('workbench');
+      const set = wb.inspect('colorTheme');
+      if (!set || (set.globalValue === undefined && set.workspaceValue === undefined)) await wb.update('colorTheme', 'Code GPT Dark', vscode.ConfigurationTarget.Global);
+    } catch (e) { /* the theme is optional */ }
+  }
+  // Like Cursor: the editor starts on the agent home when nothing else is open.
+  if (cfg().get('openHomeOnStart') !== false && !vscode.window.visibleTextEditors.length && !homePanel) {
+    try { await vscode.commands.executeCommand('workbench.action.closeAllEditors'); } catch (e) { /* nothing open */ }
+    openHome();
+  }
 }
 
 function deactivate() { if (run) run.stop(); if (askAbort) askAbort.abort(); }
 
-module.exports = { activate, deactivate, _test: { onMessage, startAgent, startAsk, inlineEdit, openDiff, decide, changes: () => changes, ws: () => ws, waiting, setView: (v) => { view = v; } } };
+module.exports = { activate, deactivate, _test: { onMessage, openHome, chatHtml, home: () => homePanel, startAgent, startAsk, inlineEdit, openDiff, decide, changes: () => changes, ws: () => ws, waiting, setView: (v) => { view = v; } } };

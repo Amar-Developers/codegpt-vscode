@@ -1,8 +1,8 @@
 {
   "name": "code-gpt",
-  "displayName": "Code GPT – AI coding agent",
+  "displayName": "Code GPT \u2013 AI coding agent",
   "description": "An AI agent for your code: it reads your project, makes changes you review with Accept or Reject, runs your tests when you press Run, and answers questions.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "publisher": "amar-developers",
   "license": "SEE LICENSE IN LICENSE.txt",
   "icon": "media/icon.png",
@@ -32,7 +32,8 @@
   ],
   "main": "./extension.js",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onWebviewPanel:codegpt.home"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -65,6 +66,12 @@
     },
     "commands": [
       {
+        "command": "codegpt.home",
+        "title": "Open Code GPT Home",
+        "category": "Code GPT",
+        "icon": "$(home)"
+      },
+      {
         "command": "codegpt.focus",
         "title": "Open the agent",
         "category": "Code GPT",
@@ -72,17 +79,17 @@
       },
       {
         "command": "codegpt.agent",
-        "title": "New agent task…",
+        "title": "New agent task\u2026",
         "category": "Code GPT"
       },
       {
         "command": "codegpt.ask",
-        "title": "Ask a question…",
+        "title": "Ask a question\u2026",
         "category": "Code GPT"
       },
       {
         "command": "codegpt.inlineEdit",
-        "title": "Edit selection with Code GPT…",
+        "title": "Edit selection with Code GPT\u2026",
         "category": "Code GPT",
         "icon": "$(sparkle)"
       },
@@ -191,7 +198,7 @@
       },
       {
         "command": "codegpt.generate",
-        "title": "Write code here…",
+        "title": "Write code here\u2026",
         "category": "Code GPT"
       },
       {
@@ -257,6 +264,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "codegpt.home",
+          "when": "view == codegpt.chat",
+          "group": "navigation@0"
+        },
         {
           "command": "codegpt.newChat",
           "when": "view == codegpt.chat",
@@ -375,6 +387,11 @@
           "type": "string",
           "default": "https://chat.codegpt.it.com",
           "description": "Address of the Code GPT app. Leave as it is."
+        },
+        "codegpt.openHomeOnStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "In Code GPT Editor, open Code GPT Home (the agent in a full window) when the editor starts with nothing else open."
         }
       }
     },
@@ -394,12 +411,12 @@
           {
             "id": "connect",
             "title": "Connect your account",
-            "description": "Sign in once in your browser.\n[Connect Code GPT](command:codegpt.focus)",
+            "description": "Sign in once in your browser.\n[Connect Code GPT](command:codegpt.connect)",
             "media": {
               "markdown": "walkthrough/connect.md"
             },
             "completionEvents": [
-              "onCommand:codegpt.focus"
+              "onContext:codegpt.connected"
             ]
           },
           {
