@@ -661,7 +661,7 @@ async function onMessage(m) {
 /* ------------------------------------------------------------------ start */
 function activate(context) {
   ctx = context;
-  api = createApi({ server, token, version: VERSION, onUnauthorized: async () => { await ctx.secrets.delete(KEY); me = null; postState(); paintStatus(); } });
+  api = createApi({ server, token, version: VERSION, appName: vscode.env.appName, onUnauthorized: async () => { await ctx.secrets.delete(KEY); me = null; postState(); paintStatus(); } });
   ws = makeWorkspace();
   changes = makeChanges();
   statusModel = vscode.window.createStatusBarItem('codegpt.model', vscode.StatusBarAlignment.Right, 100);
