@@ -1,0 +1,442 @@
+{
+  "name": "code-gpt",
+  "displayName": "Code GPT – AI coding agent",
+  "description": "An AI agent for your code: it reads your project, makes changes you review with Accept or Reject, runs your tests when you press Run, and answers questions.",
+  "version": "2.1.0",
+  "publisher": "amar-developers",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "icon": "media/icon.png",
+  "homepage": "https://codegpt.it.com/vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://codegpt.it.com/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Other",
+    "Themes"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "code gpt",
+    "chat",
+    "refactor",
+    "tests",
+    "inline edit",
+    "assistant"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In Restricted Mode Code GPT can read and change files after your review, but it cannot run commands."
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Running commands needs a folder on your computer."
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codegpt",
+          "title": "Code GPT",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "codegpt": [
+        {
+          "type": "webview",
+          "id": "codegpt.chat",
+          "name": "Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codegpt.focus",
+        "title": "Open the agent",
+        "category": "Code GPT",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codegpt.agent",
+        "title": "New agent task…",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.ask",
+        "title": "Ask a question…",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.inlineEdit",
+        "title": "Edit selection with Code GPT…",
+        "category": "Code GPT",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codegpt.addToChat",
+        "title": "Add to Code GPT chat",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.explain",
+        "title": "Explain this code",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.fix",
+        "title": "Find and fix bugs",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.improve",
+        "title": "Improve and clean up",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.tests",
+        "title": "Write tests",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.comments",
+        "title": "Add comments and docs",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.pickModel",
+        "title": "Choose the model",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.reviewChanges",
+        "title": "Review changes",
+        "category": "Code GPT",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "codegpt.acceptChange",
+        "title": "Accept this change",
+        "category": "Code GPT",
+        "icon": "$(check)"
+      },
+      {
+        "command": "codegpt.rejectChange",
+        "title": "Reject this change",
+        "category": "Code GPT",
+        "icon": "$(close)"
+      },
+      {
+        "command": "codegpt.reviewChange",
+        "title": "Show this change",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.acceptAll",
+        "title": "Accept all changes",
+        "category": "Code GPT",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "codegpt.rejectAll",
+        "title": "Reject all changes",
+        "category": "Code GPT",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "codegpt.stop",
+        "title": "Stop the agent",
+        "category": "Code GPT",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "codegpt.newChat",
+        "title": "New chat",
+        "category": "Code GPT",
+        "icon": "$(add)"
+      },
+      {
+        "command": "codegpt.openWeb",
+        "title": "Open this chat on the website",
+        "category": "Code GPT",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "codegpt.connect",
+        "title": "Connect your account",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.pasteKey",
+        "title": "Paste a key",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.disconnect",
+        "title": "Disconnect",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.generate",
+        "title": "Write code here…",
+        "category": "Code GPT"
+      },
+      {
+        "command": "codegpt.fixProblem",
+        "title": "Fix with Code GPT",
+        "category": "Code GPT"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "codegpt.menu",
+        "label": "Code GPT"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codegpt.inlineEdit",
+          "group": "1_codegpt@1",
+          "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+          "submenu": "codegpt.menu",
+          "group": "1_codegpt@2"
+        }
+      ],
+      "codegpt.menu": [
+        {
+          "command": "codegpt.addToChat",
+          "group": "0@1"
+        },
+        {
+          "command": "codegpt.explain",
+          "group": "1@1"
+        },
+        {
+          "command": "codegpt.fix",
+          "group": "1@2"
+        },
+        {
+          "command": "codegpt.improve",
+          "group": "1@3"
+        },
+        {
+          "command": "codegpt.tests",
+          "group": "1@4"
+        },
+        {
+          "command": "codegpt.comments",
+          "group": "1@5"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "codegpt.acceptChange",
+          "group": "navigation@1",
+          "when": "resourceScheme == codegpt-proposed"
+        },
+        {
+          "command": "codegpt.rejectChange",
+          "group": "navigation@2",
+          "when": "resourceScheme == codegpt-proposed"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codegpt.newChat",
+          "when": "view == codegpt.chat",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codegpt.reviewChanges",
+          "when": "view == codegpt.chat && codegpt.hasChanges",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codegpt.openWeb",
+          "when": "view == codegpt.chat",
+          "group": "navigation@3"
+        },
+        {
+          "command": "codegpt.pickModel",
+          "when": "view == codegpt.chat",
+          "group": "more@1"
+        },
+        {
+          "command": "codegpt.acceptAll",
+          "when": "view == codegpt.chat && codegpt.hasChanges",
+          "group": "more@2"
+        },
+        {
+          "command": "codegpt.rejectAll",
+          "when": "view == codegpt.chat && codegpt.hasChanges",
+          "group": "more@3"
+        },
+        {
+          "command": "codegpt.disconnect",
+          "when": "view == codegpt.chat",
+          "group": "more@9"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codegpt.acceptChange",
+          "when": "codegpt.hasChanges"
+        },
+        {
+          "command": "codegpt.rejectChange",
+          "when": "codegpt.hasChanges"
+        },
+        {
+          "command": "codegpt.reviewChange",
+          "when": "false"
+        },
+        {
+          "command": "codegpt.fixProblem",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "codegpt.inlineEdit",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "codegpt.focus",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g"
+      },
+      {
+        "command": "codegpt.explain",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "codegpt.acceptChange",
+        "key": "ctrl+alt+y",
+        "mac": "cmd+alt+y",
+        "when": "codegpt.hasChanges"
+      },
+      {
+        "command": "codegpt.rejectChange",
+        "key": "ctrl+alt+u",
+        "mac": "cmd+alt+u",
+        "when": "codegpt.hasChanges"
+      }
+    ],
+    "configuration": {
+      "title": "Code GPT",
+      "properties": {
+        "codegpt.applyAsYouGo": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Write the agent's changes to your files right away (you can still **Keep** or **Undo** each one). When off, files change only after you press **Accept**."
+        },
+        "codegpt.sendOpenFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send the file you have open with your message, so you do not have to mention it. Files that hold secrets are never sent."
+        },
+        "codegpt.saveAfterChange": {
+          "type": "boolean",
+          "default": true,
+          "description": "Save a file after you accept a change (so tests and builds see it)."
+        },
+        "codegpt.openAfterAccept": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open a file after you accept a change to it."
+        },
+        "codegpt.webSearch": {
+          "type": "boolean",
+          "default": false,
+          "description": "In Ask mode, let Code GPT search the web (for current documentation and versions)."
+        },
+        "codegpt.server": {
+          "type": "string",
+          "default": "https://chat.codegpt.it.com",
+          "description": "Address of the Code GPT app. Leave as it is."
+        }
+      }
+    },
+    "themes": [
+      {
+        "label": "Code GPT Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/codegpt-dark.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "codegpt.start",
+        "title": "Get started with Code GPT",
+        "description": "Connect your account, give the agent a task and edit code in place.",
+        "steps": [
+          {
+            "id": "connect",
+            "title": "Connect your account",
+            "description": "Sign in once in your browser.\n[Connect Code GPT](command:codegpt.focus)",
+            "media": {
+              "markdown": "walkthrough/connect.md"
+            },
+            "completionEvents": [
+              "onCommand:codegpt.focus"
+            ]
+          },
+          {
+            "id": "agent",
+            "title": "Give the agent a task",
+            "description": "Describe the change you want; review every diff.\n[New agent task](command:codegpt.agent)",
+            "media": {
+              "markdown": "walkthrough/agent.md"
+            },
+            "completionEvents": [
+              "onCommand:codegpt.agent"
+            ]
+          },
+          {
+            "id": "inline",
+            "title": "Edit code in place",
+            "description": "Select code and press Ctrl+Alt+K.\n[Try inline edit](command:codegpt.inlineEdit)",
+            "media": {
+              "markdown": "walkthrough/inline.md"
+            },
+            "completionEvents": [
+              "onCommand:codegpt.inlineEdit"
+            ]
+          },
+          {
+            "id": "models",
+            "title": "Choose a model",
+            "description": "Pick the model and effort for the job.\n[Choose the model](command:codegpt.pickModel)",
+            "media": {
+              "markdown": "walkthrough/models.md"
+            },
+            "completionEvents": [
+              "onCommand:codegpt.pickModel"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
